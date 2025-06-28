@@ -1,3 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @import 'tailwindcss';
+
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+@plugin 'tailwind-scrollbar' {
+  'nocompatible': true,
+}
+
+@theme {
+  --font-sans: "Inter", sans-serif;
+	--color-surface-0: oklch(0.17 0 0);   /* Near-black */
+	--color-surface-1: oklch(0.23 0 0);   /* Very dark gray */
+	--color-surface-2: oklch(0.29 0 0);   /* Dark gray */
+	--color-surface-3: oklch(0.32 0 0);   /* Medium-dark gray */
+	--color-surface-4: oklch(0.38 0 0);   /* Mid gray */
+}
+
+@layer base {
+  body {
+    @apply min-h-screen bg-surface-0 text-white selection:bg-blue-500;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Hide Chrome/Safari/Edge spinners */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Hide Firefox spinners */
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
