@@ -28,6 +28,7 @@
 			if (result.success) {
 				currentProject.set(result.data)
 				console.log('Successfully loaded project in ' + (end - start) + ' ms.');
+				console.log('Project nodes: ', result.data.nodeMetadata.values().toArray());
 
 		} else {
 			console.log(result.error);

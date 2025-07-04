@@ -22,7 +22,7 @@
             let project = await createProjectWithName(projectName);
             console.log(`Project created with id ${project.metadata.id}, saving.`);
             console.log("project: ", project)
-            storageBackend.saveProject(project.getSnapshot());
+            storageBackend.forceSaveProject(project.getSnapshot());
 
             prompt?.hide();
         } else {

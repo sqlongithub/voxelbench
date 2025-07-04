@@ -47,20 +47,19 @@
     )
     
     $effect(() => {
-        console.log("nodes changed: ", nodes)
-        console.log("Heres the values ", $currentProject?.nodeMetadata.values())
-        console.log("heres how many where !node", $currentProject?.nodeMetadata.values().filter(node => !node).toArray().length)
-        console.log("heres how many where !node.parent", $currentProject?.nodeMetadata.values().filter(node => !node.parent || node.parent === undefined).toArray().length)
-        console.log("heres how many where filter works", $currentProject?.nodeMetadata.values().filter(node => !node.parent || node.parent == "").toArray().length)
-        console.log("Parent values:", 
-    $currentProject?.nodeMetadata.values().toArray().map(node => ({
-      hasParent: 'parent' in node,
-      parent: node.parent,
-      parentStrict: node.parent === undefined,
-      parentLoose: node.parent == null,
-      parentTruthy: !node.parent
-    }))
-  );
+        // console.log("nodes changed: ", nodes)
+        // console.log("Heres the values ", $currentProject?.nodeMetadata.values())
+        // console.log("heres how many where !node", $currentProject?.nodeMetadata.values().filter(node => !node).toArray().length)
+        // console.log("heres how many where !node.parent", $currentProject?.nodeMetadata.values().filter(node => !node.parent || node.parent === undefined).toArray().length)
+        // console.log("heres how many where filter works", $currentProject?.nodeMetadata.values().filter(node => !node.parent || node.parent == "").toArray().length)
+        // console.log("Parent values:", $currentProject?.nodeMetadata.values().filter(node => node.parent).toArray())
+        $currentProject?.nodeMetadata.values().toArray().map(node => ({
+            hasParent: 'parent' in node,
+            parent: node.parent,
+            parentStrict: node.parent === undefined,
+            parentLoose: node.parent == null,
+            parentTruthy: !node.parent
+        }));
     })
 
 </script>

@@ -12,7 +12,7 @@
 	import DropdownTrigger from "../dropdown/DropdownTrigger.svelte";
 	import Picker from "./picker/Picker.svelte";
 	import PickerItem from "./picker/PickerItem.svelte";
-	import { BlockSize, NodeType, type BlockNodeMetadata } from "$lib/common/types/object";
+	import { BlockSize, NodeType, SnappingMode, type BlockNodeMetadata } from "$lib/common/types/object";
 	import EditorViewport from "./3d/EditorViewport.svelte";
 	import { currentProject } from "$lib/client/stores/projects";
     import { beginDeselectNode } from "$lib/client/actions/deselectNode";
@@ -43,7 +43,9 @@
             } as BlockNodeMetadata, {
                 position: { x: 0, y: 0, z: 0 },
                 rotation: { x: 0, y: 0, z: 0 },
-                scale: BlockSize.MEDIUM
+                scale: BlockSize.MEDIUM,
+                snapMode: SnappingMode.GRID,
+                snapInterval: 0.1
             })
         }
     }
@@ -51,7 +53,7 @@
 </script>
 
 {#if $currentProject != null}
-<div class="h-screen fixed top-0 left-0 z-10" data-hierarchy={true} use:beginDeselectNode>
+<div class="h-screen {/* fixed */ ""} top-0 left-0 z-10" data-hierarchy={true} use:beginDeselectNode>
     <Sidebar resizable dragSide="right">
         <SidebarContent>
             <div class="">

@@ -6,6 +6,7 @@ import { struct } from "three/tsl";
 import { generateUniqueProjectId } from ".";
 import { projects } from "../stores/projects";
 import { SvelteMap } from "svelte/reactivity";
+import { debounce } from "lodash-es";
 
 
 export type SnapshotProjectData = {
@@ -85,25 +86,38 @@ export class IndexedDBStorageBackend implements StorageBackend {
         });
         
     }
-    
-    async saveProject(project: SnapshotProjectData): Promise<Result<void>> {
-        console.log(project)
+
+    public saveProjectLater = debounce(
+        async (project: SnapshotProjectData) => {
+            const result = await this.forceSaveProject(project);
+            if (!result.success) {
+                console.error("saveWhenPossible: Failed to save project", result.error);
+            }
+            return result;
+        },
+        1000,
+        {
+            leading: false,
+            trailing: true,
+            maxWait: 3000 
+        }
+    );
+
+    public async forceSaveProject(project: SnapshotProjectData): Promise<Result<void>> {
+        let start = performance.now();
         if (!this.db) {
             console.error("saveProject: Database not initialized");
-            return { success: false, error: new Error('Database not initialized') };
+            return { success: false as const, error: new Error('Database not initialized') };
         }
 
         const transaction = this.db.transaction([this.METADATA_STORE, this.PROJECTS_STORE], 'readwrite');
 
         // Debug: Track transaction state
-        transaction.oncomplete = () => console.log("Transaction completed successfully");
-        transaction.onerror = (e) => console.error("Transaction error:", transaction.error);
-        transaction.onabort = () => console.warn("Transaction aborted");
+        transaction.oncomplete = () => console.log("saveProject: Transaction completed successfully");
+        transaction.onerror = (e) => console.error("saveProject: Transaction error:", transaction.error);
+        transaction.onabort = () => console.warn("saveProject: Transaction aborted");
 
         try {
-            // Update timestamp
-            project.metadata.lastModified = new Date();
-            console.log("saveProject: Updated metadata timestamp", project.metadata.lastModified);
 
             // Debug: Validate keyPath
             if (!project.metadata.id) {
@@ -112,24 +126,24 @@ export class IndexedDBStorageBackend implements StorageBackend {
             }
 
             // Save metadata
-            console.log("saveProject: Saving metadata", project.metadata);
             const metadataStore = transaction.objectStore(this.METADATA_STORE);
             await this.promisifyRequest(metadataStore.put(project.metadata));
-            console.log("saveProject: Metadata saved");
 
             // Save full project
-            console.log("saveProject: Saving project data", project);
             const projectsStore = transaction.objectStore(this.PROJECTS_STORE);
             await this.promisifyRequest(projectsStore.put(project));
-            console.log("saveProject: Project data saved");
-            
-            projects.set(await this.promisifyRequest(metadataStore.getAll()))
 
-            return { success: true, data: undefined };
+
+            projects.set(await this.promisifyRequest(metadataStore.getAll()));
+
+            let end = performance.now();
+            console.log(`saveProject: Completed in ${end - start}ms`);
+
+            return { success: true as const, data: undefined };
         } catch (error) {
             console.error("saveProject: Caught exception", error);
             return {
-                success: false,
+                success: false as const,
                 error: new Error(`Failed to save project: ${error instanceof Error ? error.message : String(error)}`),
             };
         }
@@ -254,7 +268,7 @@ export class IndexedDBStorageBackend implements StorageBackend {
             }
             
             // Reconstruct Project instance
-            const project = new Project(projectData.metadata, projectData.nodes);
+            const project = new Project(projectData.metadata, projectData.nodeMetadata, projectData.transforms);
             
             return { success: true, data: project };
         } catch (error) {
@@ -311,7 +325,7 @@ export class IndexedDBStorageBackend implements StorageBackend {
             clonedNodes
         );
 
-        const saveResult = await this.saveProject(newProject.getSnapshot());
+        const saveResult = await this.forceSaveProject(newProject.getSnapshot());
         if (!saveResult.success) return saveResult;
 
         return { success: true, data: newProject };
@@ -344,40 +358,3 @@ export class IndexedDBStorageBackend implements StorageBackend {
     }
 }
 
-// Usage example in your app
-export class ProjectManager {
-    private storage: StorageBackend;
-    
-    constructor(storage: StorageBackend) {
-        this.storage = storage;
-    }
-    
-    // Fast loading for homepage
-    async getProjectList(): Promise<Result<ProjectMetadata[]>> {
-        return await this.storage.loadProjectMetadataList();
-    }
-    
-    // Load full project when user clicks
-    async openProject(uuid: string): Promise<Result<Project>> {
-        return await this.storage.loadProject(uuid);
-    }
-    
-    // Auto-save with debouncing
-    private saveTimer: ReturnType<typeof setTimeout> | null = null;    
-    scheduleAutoSave(project: Project, delay = 2000) {
-        if (this.saveTimer) clearTimeout(this.saveTimer);
-        
-        this.saveTimer = setTimeout(async () => {
-            await this.storage.saveProject(project.getSnapshot());
-            this.saveTimer = null;
-        }, delay);
-    }
-    
-    async saveProjectNow(project: Project): Promise<Result<void>> {
-        if (this.saveTimer) {
-            clearTimeout(this.saveTimer);
-            this.saveTimer = null;
-        }
-        return await this.storage.saveProject(project.getSnapshot());
-    }
-}

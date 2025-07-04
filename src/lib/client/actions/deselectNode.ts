@@ -22,7 +22,7 @@ export function beginDeselectNode(p0: HTMLDivElement) {
 	const handleMouseDown = (event: MouseEvent) => {
 		if((hasAncestorWithAttribute(event.target as HTMLElement, 'data-hierarchy') || 
             hasAncestorWithAttribute(event.target as HTMLElement, 'data-viewport'))) {
-				console.log("Mouse down on hierarchy or viewport, setting shouldDeselect to true.");
+				//console.log("Mouse down on hierarchy or viewport, setting shouldDeselect to true.");
 				startX = event.x;
 				startY = event.y;
 				shouldDeselect = true;

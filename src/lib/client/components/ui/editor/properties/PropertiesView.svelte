@@ -14,7 +14,7 @@
 
 {#if $currentProject != null && node}
 <div class="fixed top-0 right-0 h-screen">
-    <Sidebar resizable dragSide="left">
+    <Sidebar resizable dragSide="left" minWidth={360}>
         <SidebarContent>
             <div class="">
                 <div class="flex flex-row items-center gap-3 h-6 align-middle mb-2">
@@ -34,6 +34,7 @@
         <SidebarContent grow={true}>
             <div class="flex flex-col gap-4 h-full">
                 {#if node?.transform}
+                <!-- svelte-ignore binding_property_non_reactive -->
                     <Transform bind:transform={node.transform} />
                 {/if}
             </div>

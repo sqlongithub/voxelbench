@@ -1,6 +1,7 @@
 <script lang="ts">
     import { currentProject } from "$lib/client/stores/projects";
-    import { BlockSize, type Transform } from "$lib/common/types/object";
+    import { BlockSize, SnappingMode, type Transform } from "$lib/common/types/object";
+	import { values } from "lodash-es";
     import Sidebar from "../sidebar/Sidebar.svelte";
     import SidebarContent from "../sidebar/SidebarContent.svelte";
     import SidebarSeparator from "../sidebar/SidebarSeparator.svelte";
@@ -66,13 +67,48 @@
             </div>
         </div>
         <div class="flex flex-col gap-2 text-sm">
-            <p class="font-light">Scale</p>
             <div class="flex flex-row gap-2 items-center">
-                <PropertyDropdown
-                    optionNames={["Very Small", "Small", "Medium", "Large", "Solid"]}
-                    optionValues={[BlockSize.VERY_SMALL, BlockSize.SMALL, BlockSize.MEDIUM, BlockSize.LARGE, BlockSize.SOLID]}
-                    bind:value={transform.scale}
-                />
+                <div class="flex flex-col flex-1 gap-2">
+                    <p class="font-light">Scale</p>
+                    <PropertyDropdown
+                        optionNames={["Very Small", "Small", "Medium", "Large", "Solid"]}
+                        optionValues={[BlockSize.VERY_SMALL, BlockSize.SMALL, BlockSize.MEDIUM, BlockSize.LARGE, BlockSize.SOLID]}
+                        bind:value={transform.scale}
+                    />
+                </div>
+                <div class="flex flex-col flex-1 gap-2">
+                    <p class="font-light">Snapping</p>
+                    <div class="flex flex-row gap-1 items-center">
+                        <PropertyDropdown
+                            optionNames={["Scale", "Grid", "Custom"]}
+                            optionValues={[SnappingMode.SCALE, SnappingMode.GRID, SnappingMode.CUSTOM]}
+                            bind:value={transform.snapMode}
+                            onChange={(value) => {
+                                if(value == SnappingMode.SCALE) {
+                                    transform.snapInterval = transform.scale
+                                } else {
+                                    transform.snapInterval = 0.1
+                                }
+                            }}
+                        />
+                        {#if transform.snapMode === SnappingMode.CUSTOM}
+                            <PropertyInput type="number" bind:value={transform.snapInterval}>Snapping Interval</PropertyInput> 
+                        {:else if transform.snapMode === SnappingMode.SCALE}
+                            <PropertyDropdown
+                                optionNames={["Very Small", "Small", "Medium", "Large", "Solid"]}
+                                optionValues={[BlockSize.VERY_SMALL, BlockSize.SMALL, BlockSize.MEDIUM, BlockSize.LARGE, BlockSize.SOLID]}
+                                onChange={(value) => transform.snapInterval = value / 10 }
+                            />
+                        {:else}
+                            <PropertyDropdown
+                                optionNames={["1.0", "0.5", "0.25", "0.125", "0.1", "0.05", "0.06125", "0.005"]}
+                                optionValues={[1.0, 0.5, 0.25, 0.125, 0.1, 0.05, 0.06125, 0.005]}
+                                bind:value={transform.snapInterval}
+                            />
+                        {/if}
+                    </div>
+                </div>
+                <div class="flex-1"></div>
             </div>
         </div>
     </div>

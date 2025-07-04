@@ -62,11 +62,19 @@ export class Project {
         }
     }
 
+    getMapSnapshot(map: SvelteMap<any, any>): Map<any, any> {
+        const snapshot = new Map<any, any>();
+        map.forEach((value, key) => {
+            snapshot.set(key, $state.snapshot(value));
+        });
+        return snapshot;
+    }
+
     getSnapshot(): SnapshotProjectData {
         return {
             metadata: $state.snapshot(this.metadata),
-            nodeMetadata: $state.snapshot(this.nodeMetadata),
-            transforms: $state.snapshot(this.nodeTransforms),
+            nodeMetadata: $state.snapshot(this.getMapSnapshot(this.nodeMetadata)),
+            transforms: $state.snapshot(this.getMapSnapshot(this.nodeTransforms)),
         }
     }
 
@@ -92,7 +100,13 @@ export class Project {
     }
 
     removeNode(uuid: string) {
-        
+        if(uuid === this.selectedNode) {
+            this.deselectNode()
+        }
+        this.nodeMetadata.set(uuid, this.valueConstructor(null))
+        this.nodeTransforms.set(uuid, this.valueConstructor(null))
+        this.nodeMetadata.delete(uuid)
+        this.nodeTransforms.delete(uuid)
     }
 
     // This function makes the node with uuid {node} a child of the node with uuid {parent}.

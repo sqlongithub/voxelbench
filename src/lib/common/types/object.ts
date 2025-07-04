@@ -56,8 +56,16 @@ export interface Float3 {
     z: number,
 }
 
+export enum SnappingMode {
+    GRID, // snap to a grid interval like 0.1, 0.5
+    SCALE, // based on a scale value
+    CUSTOM // custom number
+}
+
 export interface Transform {
     position: Float3;
     rotation: Float3;
     scale: ItemSize | BlockSize;
+    snapMode: SnappingMode;
+    snapInterval: number;
 }

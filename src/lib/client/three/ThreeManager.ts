@@ -1,10 +1,14 @@
 import * as THREE from 'three';
 // @ts-ignore
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { createMeshFromNode } from './SceneNodeMesh';
+import { createMeshFromNode, updateMeshFromNode } from './SceneNodeMesh';
 import { SvelteMap } from 'svelte/reactivity';
 import CameraController from './CameraController';
-import { SelectionManager } from './SelectionManager';
+import { SelectionManager, TransformDirection } from './SelectionManager';
+	import type { Transform } from '$lib/common/types/object';
+import { int } from 'three/tsl';
+import { get } from 'svelte/store';
+import { currentProject } from '../stores/projects';
 
 export interface ThreeManagerOptions {
 	canvas: HTMLCanvasElement;
@@ -12,7 +16,12 @@ export interface ThreeManagerOptions {
 	backgroundColor?: number | string;
 }
 
+export const X_AXIS_COLOR = 0xe57373; // Red
+export const Y_AXIS_COLOR = 0x78cf7c; // Green
+export const Z_AXIS_COLOR = 0x64b5f6; // Blue
+
 export class ThreeManager {
+	
 	private scene: THREE.Scene;
 	public cameraController: CameraController;
 	private renderer: THREE.WebGLRenderer;
@@ -26,8 +35,14 @@ export class ThreeManager {
 		this.debounce(this.resize, 1)
 	});
 
+	private createAxisLine(start: THREE.Vector3, end: THREE.Vector3, material: THREE.Material): void {
+		const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+		const line = new THREE.Line(geometry, material);
+		this.scene.add(line);
+	}
+
 	constructor(options: ThreeManagerOptions) {
-		const { canvas, initialCameraPosition = new THREE.Vector3(2, 0, 5), backgroundColor = 0x111111 } = options;
+		const { canvas, initialCameraPosition = new THREE.Vector3(2, 0, 5), backgroundColor = 0xaaaaaa } = options;
 		this.canvas = canvas;
 
 		this.scene = new THREE.Scene();
@@ -36,7 +51,7 @@ export class ThreeManager {
 		this.selectionManager = new SelectionManager(this.scene);
 
 		let camera = new THREE.PerspectiveCamera(
-			75,
+			50,
 			canvas.clientWidth / canvas.clientHeight,
 			0.1,
 			1000
@@ -46,6 +61,7 @@ export class ThreeManager {
 		this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 		this.renderer.setPixelRatio(window.devicePixelRatio);
 
+		this.scene.fog = new THREE.Fog(backgroundColor, 20, 50);
 		let light = new THREE.HemisphereLight(0xffffff, 0x404040, 0.6);
 		this.scene.add(light);
 
@@ -71,11 +87,47 @@ export class ThreeManager {
 
 		let controls = new OrbitControls(camera, this.renderer.domElement);
 		controls.enableDamping = true;
+		controls.zoomSpeed = 2;
 
 		this.cameraController = new CameraController(camera, controls);
 		this.resize();
 
         this.resizeObserver.observe(canvas);
+
+
+		const majorGrid = new THREE.GridHelper(1000, 1000, 0x393939, 0x393939);
+		majorGrid.material.opacity = 0.3;
+		majorGrid.material.transparent = false;
+		majorGrid.renderOrder = 1;
+
+
+		// Minor grid lines (darker, more divisions)
+		const minorGrid = new THREE.GridHelper(1000, 10000, 0x222222, 0x222222);
+		minorGrid.material.opacity = 0.6;
+		minorGrid.material.transparent = false;
+		minorGrid.renderOrder = 0;
+
+		this.scene.add(majorGrid);
+		this.scene.add(minorGrid);
+
+		const axisLength = 255;
+		const axisOffset = 1e-2;
+
+		this.createAxisLine(
+			new THREE.Vector3(-axisLength, axisOffset, 0),
+			new THREE.Vector3(axisLength, axisOffset, 0),
+			new THREE.LineBasicMaterial({ color: X_AXIS_COLOR, linewidth: 3 })
+		)
+		this.createAxisLine(
+			new THREE.Vector3(0, -axisLength, 0),
+			new THREE.Vector3(0, axisLength, 0),
+			new THREE.LineBasicMaterial({ color: Y_AXIS_COLOR, linewidth: 3 })
+		)
+		this.createAxisLine(
+			new THREE.Vector3(0, axisOffset, -axisLength),
+			new THREE.Vector3(0, axisOffset, axisLength),
+			new THREE.LineBasicMaterial({ color: Z_AXIS_COLOR, linewidth: 3 })
+		);
 	}
 
     private debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
@@ -97,6 +149,13 @@ export class ThreeManager {
 			}
 		}
 		return undefined;
+	}
+
+	updateMeshTransform(meshUuid: string, transform: Transform) {
+		const mesh = this.getMesh(meshUuid);
+		if (mesh) {
+			updateMeshFromNode(mesh, meshUuid);
+		}
 	}
 
 	resize = () => {
@@ -129,15 +188,47 @@ export class ThreeManager {
 		this.selectionManager?.clearSelection();
 	}
 
+	getSelectedMesh(): THREE.Mesh | null {
+		for (const [mesh, meshUuid] of this.meshMap) {
+			if (get(currentProject)?.selectedNode === meshUuid) {
+				return mesh;
+			}
+		}
+		return null;
+	}
+
 	updateSelection() {
-		console.log("Updating selection in ThreeManager");
+		//console.log("Updating selection in ThreeManager");
 		this.selectionManager?.updateSelection();
 	}
 
-	getIntersectingObjects(mouse: THREE.Vector2): THREE.Object3D[] {
+	getIntersectingNodes(mouse: THREE.Vector2): THREE.Intersection[] {
 		this.raycaster.setFromCamera(mouse, this.cameraController.camera);
-		const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-		return intersects.map(intersect => intersect.object);
+		const intersects = this.raycaster.intersectObjects(Array.from(this.meshMap.keys()), true);
+		return intersects
+	}
+
+	getIntersectingTransformAxis(mouse: THREE.Vector2): TransformDirection | null {
+		this.raycaster.setFromCamera(mouse, this.cameraController.camera);
+		const intersects = this.raycaster.intersectObjects(
+			(() => {
+				const objects: THREE.Object3D[] = [];
+				this.selectionManager?.selectionGroup?.traverse(obj => objects.push(obj));
+				return objects;
+			})(),
+			true
+		);
+
+		//console.log("Intersect object names: ", intersects.map(intersect => intersect.object.name));
+
+		if (intersects.length === 0) return null;
+
+		const firstAxis = intersects.find(intersect =>
+			this.selectionManager?.getTransformAxis(intersect.object)
+		);
+
+		//console.log("First axis found: ", firstAxis);
+		return this.selectionManager?.getTransformAxis(firstAxis?.object as THREE.Mesh) ?? null;
 	}
 
     removeNode(uuid: string) {
@@ -152,6 +243,7 @@ export class ThreeManager {
 	animate = () => {
 		this.animationId = requestAnimationFrame(this.animate);
 		this.cameraController.update();
+		this.selectionManager?.tick();
 		this.renderer.render(this.scene, this.cameraController.camera);
 	}
 

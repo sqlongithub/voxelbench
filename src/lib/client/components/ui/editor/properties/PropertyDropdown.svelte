@@ -13,11 +13,11 @@
 
 
 </script>
-<div class="flex flex-row gap-1 items-center w-full">
+<div class="flex flex-row gap-1 items-center">
     <Dropdown>
         <DropdownTrigger>
             <div class="flex flex-row gap-1 items-center border-surface-2 border-2 px-2 py-1 rounded-md">
-                <span>{optionNames[optionValues.indexOf(value)]}</span>
+                <span class="text-nowrap">{optionNames[optionValues.indexOf(value)]}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="size-3 pt-0.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                 </svg>

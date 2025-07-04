@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as TWEEN from '@tweenjs/tween.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // Define types for better type safety
 interface TweenResult {
@@ -7,10 +8,6 @@ interface TweenResult {
   targetTween: TWEEN.Tween<THREE.Vector3>;
 }
 
-interface OrbitControls {
-  target: THREE.Vector3;
-  update(): void;
-}
 
 class CameraController {
   public camera: THREE.Camera;
@@ -29,6 +26,17 @@ class CameraController {
     this.orbitControls = null as any; // Clear reference to orbit controls
   }
 
+  public disableOrbitControls(): void {
+    if (this.orbitControls) {
+      this.orbitControls.enabled = false;
+    }
+  }
+
+  public enableOrbitControls(): void {
+    if (this.orbitControls) {
+      this.orbitControls.enabled = true;
+    }
+  }
 
 
   public resize(width: number, height: number): void {
@@ -72,7 +80,7 @@ class CameraController {
     
     const tween = new TWEEN.Tween(startTarget)
       .to(newTarget, duration)
-      .easing(TWEEN.Easing.Cubic.InOut)
+      .easing(TWEEN.Easing.Quadratic.InOut)
       .onUpdate(() => {
         this.orbitControls.target.copy(startTarget);
         this.orbitControls.update();
