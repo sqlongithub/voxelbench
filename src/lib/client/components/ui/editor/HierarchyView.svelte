@@ -44,8 +44,8 @@
                 position: { x: 0, y: 0, z: 0 },
                 rotation: { x: 0, y: 0, z: 0 },
                 scale: BlockSize.MEDIUM,
-                snapMode: SnappingMode.GRID,
-                snapInterval: 0.1
+                snapMode: SnappingMode.SCALE,
+                snapInterval: BlockSize.MEDIUM,
             })
         }
     }
