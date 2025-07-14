@@ -27,7 +27,7 @@
 
 			if (result.success) {
 				currentProject.set(result.data)
-				console.log('Successfully loaded project in ' + (end - start) + ' ms.');
+				console.log('Successfully loaded project with ' + result.data.nodeMetadata.size + ' nodes in ' + (end - start) + ' ms.');
 				console.log('Project nodes: ', result.data.nodeMetadata.values().toArray());
 
 		} else {

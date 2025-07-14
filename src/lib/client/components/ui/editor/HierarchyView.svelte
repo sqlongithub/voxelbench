@@ -25,7 +25,7 @@
     let blockPicker = $state<Picker>();
 
     function addBlock(block: MCItemOrBlock, event: MouseEvent) {
-        console.log("adding " + block.displayName)
+        //console.log("adding " + block.displayName)
         if(!event.shiftKey) {
             console.log("closing")
             blockPicker?.close();

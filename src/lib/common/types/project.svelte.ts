@@ -34,11 +34,19 @@ export function formatTimeSinceLastModified(project: ProjectMetadata | null): St
 	return formatDistanceToNow(date, { addSuffix: true });
 }
 
+export enum TransformMode {
+    TRANSLATE,
+    ROTATE,
+    SCALE,
+     
+}
+
 export class Project {
     metadata: ProjectMetadata;
     nodeMetadata: SvelteMap<string, SceneNodeMetadata> = $state(new SvelteMap());
     nodeTransforms: SvelteMap<string, Transform> = $state(new SvelteMap());
     selectedNode = $state("")
+    mode: TransformMode = $state(TransformMode.TRANSLATE)
     
     valueConstructor(value: any) {
         const a = $state(value)

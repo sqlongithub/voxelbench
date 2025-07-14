@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 // @ts-ignore
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { createMeshFromNode, updateMeshFromNode } from './SceneNodeMesh';
+import { createObjectFromNode, updateObjectFromNode } from './SceneNodeMesh';
 import { SvelteMap } from 'svelte/reactivity';
 import CameraController from './CameraController';
 import { SelectionManager, TransformDirection } from './SelectionManager';
-	import type { Transform } from '$lib/common/types/object';
-import { int } from 'three/tsl';
+import type { Transform } from '$lib/common/types/object';
+import { int, texture, textureLoad } from 'three/tsl';
 import { get } from 'svelte/store';
 import { currentProject } from '../stores/projects';
 
@@ -21,18 +21,18 @@ export const Y_AXIS_COLOR = 0x78cf7c; // Green
 export const Z_AXIS_COLOR = 0x64b5f6; // Blue
 
 export class ThreeManager {
-	
 	private scene: THREE.Scene;
 	public cameraController: CameraController;
 	private renderer: THREE.WebGLRenderer;
 	private animationId?: number;
 	private canvas: HTMLCanvasElement;
-	public meshMap: SvelteMap<THREE.Mesh, string> = new SvelteMap();
+	public objectMap: SvelteMap<THREE.Object3D, string> = new SvelteMap();
 	private raycaster = new THREE.Raycaster();
 	private selectionManager: SelectionManager | undefined;
+	private textureLoader: THREE.TextureLoader;
 
-	private resizeObserver = new ResizeObserver(entries => {
-		this.debounce(this.resize, 1)
+	private resizeObserver = new ResizeObserver((entries) => {
+		this.debounce(this.resize, 1);
 	});
 
 	private createAxisLine(start: THREE.Vector3, end: THREE.Vector3, material: THREE.Material): void {
@@ -42,7 +42,11 @@ export class ThreeManager {
 	}
 
 	constructor(options: ThreeManagerOptions) {
-		const { canvas, initialCameraPosition = new THREE.Vector3(2, 0, 5), backgroundColor = 0xaaaaaa } = options;
+		const {
+			canvas,
+			initialCameraPosition = new THREE.Vector3(2, 0, 5),
+			backgroundColor = 0xaaaaaa
+		} = options;
 		this.canvas = canvas;
 
 		this.scene = new THREE.Scene();
@@ -85,6 +89,9 @@ export class ThreeManager {
 		fillLight.position.set(-5, 0, -5);
 		this.scene.add(fillLight);
 
+		const ambientLight = new THREE.AmbientLight(0xffffff, 0.3)
+		this.scene.add(ambientLight)
+
 		let controls = new OrbitControls(camera, this.renderer.domElement);
 		controls.enableDamping = true;
 		controls.zoomSpeed = 2;
@@ -92,14 +99,12 @@ export class ThreeManager {
 		this.cameraController = new CameraController(camera, controls);
 		this.resize();
 
-        this.resizeObserver.observe(canvas);
-
+		this.resizeObserver.observe(canvas);
 
 		const majorGrid = new THREE.GridHelper(1000, 1000, 0x393939, 0x393939);
 		majorGrid.material.opacity = 0.3;
 		majorGrid.material.transparent = false;
 		majorGrid.renderOrder = 1;
-
 
 		// Minor grid lines (darker, more divisions)
 		const minorGrid = new THREE.GridHelper(1000, 10000, 0x222222, 0x222222);
@@ -117,20 +122,22 @@ export class ThreeManager {
 			new THREE.Vector3(-axisLength, axisOffset, 0),
 			new THREE.Vector3(axisLength, axisOffset, 0),
 			new THREE.LineBasicMaterial({ color: X_AXIS_COLOR, linewidth: 3 })
-		)
+		);
 		this.createAxisLine(
 			new THREE.Vector3(0, -axisLength, 0),
 			new THREE.Vector3(0, axisLength, 0),
 			new THREE.LineBasicMaterial({ color: Y_AXIS_COLOR, linewidth: 3 })
-		)
+		);
 		this.createAxisLine(
 			new THREE.Vector3(0, axisOffset, -axisLength),
 			new THREE.Vector3(0, axisOffset, axisLength),
 			new THREE.LineBasicMaterial({ color: Z_AXIS_COLOR, linewidth: 3 })
 		);
+
+		this.textureLoader = new THREE.TextureLoader();
 	}
 
-    private debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
+	private debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
 		let timeoutId: ReturnType<typeof setTimeout> | undefined;
 		return ((...args: any[]) => {
 			if (timeoutId) clearTimeout(timeoutId);
@@ -138,23 +145,29 @@ export class ThreeManager {
 		}) as T;
 	}
 
-	getUuid(mesh: THREE.Mesh): string | undefined {
-		return this.meshMap.get(mesh);
+	async loadTexture(name: string): Promise<THREE.Texture> {
+		return await this.textureLoader.loadAsync('/mc-assets/minecraft/textures/' + name + '.png');
 	}
 
-	getMesh(uuid: string): THREE.Mesh | undefined {
-		for (const [mesh, meshUuid] of this.meshMap) {
-			if (meshUuid === uuid) {
-				return mesh;
+	getUuid(object: THREE.Object3D): string | undefined {
+		return this.objectMap.get(object);
+	}
+
+	getObject(uuid: string): THREE.Object3D | undefined {
+		for (const [object, objectUuid] of this.objectMap) {
+			if (objectUuid === uuid) {
+				console.log("uuid " + uuid + " already in object map")
+				return object;
 			}
 		}
+		console.log("uuid " + uuid + " not in object map ", this.objectMap)
 		return undefined;
 	}
 
-	updateMeshTransform(meshUuid: string, transform: Transform) {
-		const mesh = this.getMesh(meshUuid);
-		if (mesh) {
-			updateMeshFromNode(mesh, meshUuid);
+	updateObjectTransform(objectUuid: string, transform: Transform) {
+		const object = this.getObject(objectUuid);
+		if (object) {
+			updateObjectFromNode(object, objectUuid);
 		}
 	}
 
@@ -167,18 +180,21 @@ export class ThreeManager {
 		this.cameraController.resize(width, height);
 	};
 
-    addNode(uuid: string) {
-        if(this.meshMap.values().some(meshUuid => meshUuid === uuid)) return;
-
-        const mesh = createMeshFromNode(uuid);
-		console.log("made mesh", mesh);
+	async addNode(uuid: string) {
+		if (this.objectMap.values().some((meshUuid) => meshUuid === uuid)) return;
+		//console.log("addNode for", uuid)
+		const mesh = await createObjectFromNode(this, uuid);
+		//console.log('made mesh', mesh);
 		this.scene.add(mesh);
 
-        this.meshMap.set(mesh, uuid);
-    }
+		//console.log('before adding a node object map now has ' + this.objectMap.size);
+		this.objectMap.set(mesh, uuid);
+		//console.log('after adding a node object map now has ' + this.objectMap.size);
+		//console.log('we added this: ', mesh);
+	}
 
 	selectNode(uuid: string) {
-		const mesh = this.getMesh(uuid);
+		const mesh = this.getObject(uuid);
 		if (!mesh) return;
 
 		this.selectionManager?.selectObject(mesh);
@@ -188,10 +204,10 @@ export class ThreeManager {
 		this.selectionManager?.clearSelection();
 	}
 
-	getSelectedMesh(): THREE.Mesh | null {
-		for (const [mesh, meshUuid] of this.meshMap) {
-			if (get(currentProject)?.selectedNode === meshUuid) {
-				return mesh;
+	getSelectedObject(): THREE.Object3D | null {
+		for (const [object, objectUuid] of this.objectMap) {
+			if (get(currentProject)?.selectedNode === objectUuid) {
+				return object;
 			}
 		}
 		return null;
@@ -204,8 +220,20 @@ export class ThreeManager {
 
 	getIntersectingNodes(mouse: THREE.Vector2): THREE.Intersection[] {
 		this.raycaster.setFromCamera(mouse, this.cameraController.camera);
-		const intersects = this.raycaster.intersectObjects(Array.from(this.meshMap.keys()), true);
-		return intersects
+		const intersects = this.raycaster.intersectObjects(Array.from(this.objectMap.keys()), true);
+		const mappedIntersections = intersects.map((intersection) => {
+			let current = intersection.object;
+			while (current && !(current instanceof THREE.Group)) {
+				if(current.parent) current = current.parent;
+			}
+
+			return {
+				...intersection,
+				object: current || intersection.object
+			};
+		});
+
+		return mappedIntersections;
 	}
 
 	getIntersectingTransformAxis(mouse: THREE.Vector2): TransformDirection | null {
@@ -213,7 +241,7 @@ export class ThreeManager {
 		const intersects = this.raycaster.intersectObjects(
 			(() => {
 				const objects: THREE.Object3D[] = [];
-				this.selectionManager?.selectionGroup?.traverse(obj => objects.push(obj));
+				this.selectionManager?.selectionGroup?.traverse((obj) => objects.push(obj));
 				return objects;
 			})(),
 			true
@@ -223,7 +251,7 @@ export class ThreeManager {
 
 		if (intersects.length === 0) return null;
 
-		const firstAxis = intersects.find(intersect =>
+		const firstAxis = intersects.find((intersect) =>
 			this.selectionManager?.getTransformAxis(intersect.object)
 		);
 
@@ -231,25 +259,25 @@ export class ThreeManager {
 		return this.selectionManager?.getTransformAxis(firstAxis?.object as THREE.Mesh) ?? null;
 	}
 
-    removeNode(uuid: string) {
-        this.meshMap.forEach((meshUuid, mesh) => {
-			if (meshUuid === uuid) {
-				this.scene.remove(mesh);
-				this.meshMap.delete(mesh);
+	removeNode(uuid: string) {
+		this.objectMap.forEach((objectUuid, object) => {
+			if (objectUuid === uuid) {
+				this.scene.remove(object);
+				this.objectMap.delete(object);
 			}
 		});
-    }
+	}
 
 	animate = () => {
 		this.animationId = requestAnimationFrame(this.animate);
 		this.cameraController.update();
 		this.selectionManager?.tick();
 		this.renderer.render(this.scene, this.cameraController.camera);
-	}
+	};
 
 	dispose = () => {
 		if (this.animationId) cancelAnimationFrame(this.animationId);
 		this.cameraController.dispose();
-        this.resizeObserver.disconnect();
-	}
+		this.resizeObserver.disconnect();
+	};
 }

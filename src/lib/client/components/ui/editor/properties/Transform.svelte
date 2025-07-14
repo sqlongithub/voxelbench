@@ -17,6 +17,14 @@
         $currentProject.nodeTransforms.set($currentProject.selectedNode ?? "", transform);
     }
 
+    let visualSnapSizeInterval = $state(transform.scale)
+
+    $effect(() => {
+        if(transform.snapMode === SnappingMode.SCALE) {
+            //console.log("scale snap mode")
+            transform.snapInterval = visualSnapSizeInterval / 10.0
+        } 
+    })
 
 </script>
 
@@ -83,13 +91,7 @@
                             optionNames={["Scale", "Grid", "Custom"]}
                             optionValues={[SnappingMode.SCALE, SnappingMode.GRID, SnappingMode.CUSTOM]}
                             bind:value={transform.snapMode}
-                            onChange={(value) => {
-                                if(value == SnappingMode.SCALE) {
-                                    transform.snapInterval = transform.scale
-                                } else {
-                                    transform.snapInterval = 0.1
-                                }
-                            }}
+                            
                         />
                         {#if transform.snapMode === SnappingMode.CUSTOM}
                             <PropertyInput type="number" bind:value={transform.snapInterval}>Snapping Interval</PropertyInput> 
@@ -97,7 +99,7 @@
                             <PropertyDropdown
                                 optionNames={["Very Small", "Small", "Medium", "Large", "Solid"]}
                                 optionValues={[BlockSize.VERY_SMALL, BlockSize.SMALL, BlockSize.MEDIUM, BlockSize.LARGE, BlockSize.SOLID]}
-                                onChange={(value) => transform.snapInterval = value / 10 }
+                                bind:value={visualSnapSizeInterval}
                             />
                         {:else}
                             <PropertyDropdown

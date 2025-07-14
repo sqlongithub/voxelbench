@@ -10,7 +10,7 @@
 	import { fade, fly, slide, type TransitionConfig } from "svelte/transition";
 	import { currentProject } from "$lib/client/stores/projects";
 	import { clickOutside } from "$lib/client/actions/clickOutside";
-	import { deselectNode } from "$lib/client/actions/deselectNode";
+	import { deselectNode, deleteNodeAction } from "$lib/client/actions/deselectNode";
 
     const { nodeMetadata, indentation = 0 } = $props<{ nodeMetadata: SceneNodeMetadata; indentation?: number }>();
 
@@ -28,15 +28,19 @@
     let dragStartPos: { x: number; y: number; } | null = null;
     let dragThreshold = 5; // pixels
 
-    console.log(nodeMetadata?.uuid == $dropNode)
-
     let expanded = $state(false)
     function toggleExpanded() {
         expanded = !expanded;
     }
 
-    console.log(indentation)
-
+    onMount(() => {
+        /* document.addEventListener('keydown', (e) => {
+            if(e.key == 'Delete') {
+                deleteNode()
+            }
+        }) */
+    })
+    
     function mouseMove(event: MouseEvent) {
         if (!dragStartPos) return;
         
@@ -78,7 +82,7 @@
     function deleteNode() {
         console.log("Deleting node " + nodeMetadata.name);
         $currentProject?.removeNode(nodeMetadata.uuid);
-        console.log("Current project, ", $currentProject)
+        console.log("Current project metas ", $currentProject?.nodeMetadata.values)
     }
 
     interface FlySlideParams {
@@ -118,6 +122,7 @@
 <li oncontextmenu={onRightClickNode} >
     <div
         use:deselectNode={() => { $currentProject?.deselectNode() }}
+        use:deleteNodeAction={() => { deleteNode() }}
         role="button"
         tabindex="0"
         aria-label="Tree node group"

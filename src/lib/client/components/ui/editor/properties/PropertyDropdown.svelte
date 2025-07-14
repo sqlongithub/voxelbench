@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { transform } from "lodash-es";
 	import Dropdown from "../../dropdown/Dropdown.svelte";
 	import DropdownContent from "../../dropdown/DropdownContent.svelte";
 	import DropdownItem from "../../dropdown/DropdownItem.svelte";
 	import DropdownTrigger from "../../dropdown/DropdownTrigger.svelte";
+	import { currentProject } from "$lib/client/stores/projects";
 
     let { optionNames, optionValues, value = $bindable(), onChange = (value: any) => {} } = $props<{
         optionNames?: string[];
@@ -10,6 +12,10 @@
         value?: any;
         onChange?: (value: any) => void;
     }>();
+
+    $effect(() => {
+        //console.log("snap interval ", $currentProject?.getNode($currentProject.selectedNode).transform.snapInterval)
+    })
 
 
 </script>

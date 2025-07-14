@@ -46,9 +46,9 @@
 
 
 
-	function addNodeToScene(uuid: string) {
-		console.log("adding node to scene")
-		threeManager.addNode(uuid);
+	async function addNodeToScene(uuid: string) {
+		//console.log("adding node to scene", uuid)
+		await threeManager.addNode(uuid);
 	}
 
 	onMount(() => {
@@ -105,7 +105,7 @@
 			//console.log("Dragging axis: ", axis);
 			draggingAxis = axis;
 
-			const selectedMesh = threeManager.getSelectedMesh();
+			const selectedMesh = threeManager.getSelectedObject();
 			if (!selectedMesh) return;
 
 			threeManager.cameraController.camera.getWorldDirection(cameraDirection);
@@ -152,7 +152,7 @@
 	function handleDrag(event: MouseEvent) {
 		if (!draggingAxis) return;
 		
-		const selectedMesh = threeManager.getSelectedMesh();
+		const selectedMesh = threeManager.getSelectedObject();
 		if (!selectedMesh) return;
 		
 		updateMousePosition(event);
@@ -173,15 +173,15 @@
 		
 		const newPosition = objectStartPosition.clone().add(movement)
 		if (selectedNodeTransform) {
-			if(Math.abs(movement.x) * 1.1 >= selectedNodeTransform.snapInterval) {
-				selectedNodeTransform.position.x = nearestToInterval(newPosition.x, selectedNodeTransform.snapInterval);
-			}
-			if(Math.abs(movement.y) * 1.1 >= selectedNodeTransform.snapInterval) {
-				selectedNodeTransform.position.y = nearestToInterval(newPosition.y, selectedNodeTransform.snapInterval);
-			}
-			if(Math.abs(movement.z) * 1.1 >= selectedNodeTransform.snapInterval) {
-				selectedNodeTransform.position.z = nearestToInterval(newPosition.z, selectedNodeTransform.snapInterval);
-			}
+			//if(Math.abs(movement.x) * 1.1 >= selectedNodeTransform.snapInterval) {
+			selectedNodeTransform.position.x = nearestToInterval(newPosition.x, selectedNodeTransform.snapInterval);
+			//}
+			//if(Math.abs(movement.y) * 1.1 >= selectedNodeTransform.snapInterval) {
+			selectedNodeTransform.position.y = nearestToInterval(newPosition.y, selectedNodeTransform.snapInterval);
+			//}
+			//if(Math.abs(movement.z) * 1.1 >= selectedNodeTransform.snapInterval) {
+			selectedNodeTransform.position.z = nearestToInterval(newPosition.z, selectedNodeTransform.snapInterval);
+			//}
 		}
 	}
 
@@ -196,8 +196,6 @@
 		//console.log("Intersects found: ", intersects.length);
 		if(intersects.length > 0) {
 			const sortedIntersects = intersects.sort((a, b) => {
-				if (!(a.object instanceof THREE.Mesh) || !(b.object instanceof THREE.Mesh)) return 0;
-
 				const distanceDiff = a.distance - b.distance;
 
 				// If distances are significantly different, sort by distance
@@ -206,8 +204,8 @@
 				}
 
 				// Otherwise use metadata timestamp as tiebreaker
-				const aUuid = threeManager.getUuid(a.object as THREE.Mesh);
-				const bUuid = threeManager.getUuid(b.object as THREE.Mesh);
+				const aUuid = threeManager.getUuid(a.object);
+				const bUuid = threeManager.getUuid(b.object);
 				if (!aUuid || !bUuid) return 0;
 
 				const aNode = $currentProject?.getNode(aUuid);
@@ -250,9 +248,9 @@
 	$effect(() => {
 		console.log("New object added/removed externally")
 		Array.from($currentProject?.nodeMetadata.keys() || [])
-			.filter(n => !threeManager.getMesh(n))
+			.filter(n => !threeManager.getObject(n))
 			.forEach(addNodeToScene)
-		Array.from(threeManager.meshMap.values())
+		Array.from(threeManager.objectMap.values())
 			.filter(n => !$currentProject?.nodeMetadata.has(n))
 			.forEach(uuid => {
 				threeManager.removeNode(uuid);
@@ -260,12 +258,12 @@
 	})
 
 	$effect(() => {
-		threeManager.meshMap.forEach((meshUuid, mesh) => {
-			const node = $currentProject?.getNode(meshUuid);
+		threeManager.objectMap.forEach((objectUuid, object) => {
+			const node = $currentProject?.getNode(objectUuid);
 			if (node && node.transform) {
-				threeManager.updateMeshTransform(meshUuid, node.transform);
+				threeManager.updateObjectTransform(objectUuid, node.transform);
 			} else {
-				console.warn(`Node with UUID ${meshUuid} not found or has no transform.`);
+				console.warn(`Node with UUID ${objectUuid} not found or has no transform.`);
 			}
 		});
 	})

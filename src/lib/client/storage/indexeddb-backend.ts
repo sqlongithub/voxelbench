@@ -113,7 +113,6 @@ export class IndexedDBStorageBackend implements StorageBackend {
         const transaction = this.db.transaction([this.METADATA_STORE, this.PROJECTS_STORE], 'readwrite');
 
         // Debug: Track transaction state
-        transaction.oncomplete = () => console.log("saveProject: Transaction completed successfully");
         transaction.onerror = (e) => console.error("saveProject: Transaction error:", transaction.error);
         transaction.onabort = () => console.warn("saveProject: Transaction aborted");
 
